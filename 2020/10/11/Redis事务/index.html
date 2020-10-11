@@ -6,17 +6,17 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://hushiba.github.io">
-  <title>first blog | 胡十八</title>
+  <title>胡十八</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="今天是十月十一号 今天很冷 阳台很臭  今天是十月十一号刚搭的博客 今天很冷气温22-15 阳台很臭不知道谁的袜子放在了阳台，巨臭">
+  <meta name="description" content="Redis基本事务Redis单条命令保证原子性，事务不保证原子性。事务命令序列化，顺序执行。 muti 开启事务exec 执行事务discard 取消事务 编译型异常，所有事务都不被执行运行时异常，其他命令照常执行 Redis乐观锁在Mysql中获取version，更新时比较version。Redis使用watch监视，unwatch取消监视。 12345watch moneymultidecrb">
 <meta property="og:type" content="article">
-<meta property="og:title" content="first blog">
-<meta property="og:url" content="https://hushiba.github.io/2020/10/11/%E8%AF%95%E9%AA%8C/index.html">
+<meta property="og:title" content="胡十八">
+<meta property="og:url" content="https://hushiba.github.io/2020/10/11/Redis%E4%BA%8B%E5%8A%A1/index.html">
 <meta property="og:site_name" content="胡十八">
-<meta property="og:description" content="今天是十月十一号 今天很冷 阳台很臭  今天是十月十一号刚搭的博客 今天很冷气温22-15 阳台很臭不知道谁的袜子放在了阳台，巨臭">
+<meta property="og:description" content="Redis基本事务Redis单条命令保证原子性，事务不保证原子性。事务命令序列化，顺序执行。 muti 开启事务exec 执行事务discard 取消事务 编译型异常，所有事务都不被执行运行时异常，其他命令照常执行 Redis乐观锁在Mysql中获取version，更新时比较version。Redis使用watch监视，unwatch取消监视。 12345watch moneymultidecrb">
 <meta property="og:locale" content="en_US">
-<meta property="article:published_time" content="2020-10-11T01:51:43.383Z">
-<meta property="article:modified_time" content="2020-10-11T02:42:18.964Z">
+<meta property="article:published_time" content="2020-10-11T09:30:29.196Z">
+<meta property="article:modified_time" content="2020-10-11T11:29:12.257Z">
 <meta property="article:author" content="John Doe">
 <meta name="twitter:card" content="summary">
   
@@ -154,34 +154,18 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-试验" class="article article-type-post " itemscope itemprop="blogPost">
+            <article id="post-Redis事务" class="article article-type-post " itemscope itemprop="blogPost">
   <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 class="article-title" itemprop="name">
-      first blog
-    </h1>
-  
-
-        
-        <a href="/2020/10/11/%E8%AF%95%E9%AA%8C/" class="archive-article-date">
-  	<time datetime="2020-10-11T01:51:43.383Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2020-10-11</time>
-</a>
-        
-      </header>
     
     <div class="article-entry" itemprop="articleBody">
       
-        <ul>
-<li><a href="#%E4%BB%8A%E5%A4%A9%E6%98%AF%E5%8D%81%E6%9C%88%E5%8D%81%E4%B8%80%E5%8F%B7">今天是十月十一号</a></li>
-<li><a href="#%E4%BB%8A%E5%A4%A9%E5%BE%88%E5%86%B7">今天很冷</a></li>
-<li><a href="#%E9%98%B3%E5%8F%B0%E5%BE%88%E8%87%AD">阳台很臭</a></li>
-</ul>
-<h2 id="今天是十月十一号"><a href="#今天是十月十一号" class="headerlink" title="今天是十月十一号"></a>今天是十月十一号</h2><p>刚搭的博客</p>
-<h2 id="今天很冷"><a href="#今天很冷" class="headerlink" title="今天很冷"></a>今天很冷</h2><p>气温22-15</p>
-<h2 id="阳台很臭"><a href="#阳台很臭" class="headerlink" title="阳台很臭"></a>阳台很臭</h2><p>不知道谁的袜子放在了阳台，巨臭</p>
+        <h1 id="Redis基本事务"><a href="#Redis基本事务" class="headerlink" title="Redis基本事务"></a>Redis基本事务</h1><p>Redis单条命令保证原子性，事务不保证原子性。<br>事务命令序列化，顺序执行。</p>
+<p>muti 开启事务<br>exec 执行事务<br>discard 取消事务</p>
+<p>编译型异常，所有事务都不被执行<br>运行时异常，其他命令照常执行</p>
+<h2 id="Redis乐观锁"><a href="#Redis乐观锁" class="headerlink" title="Redis乐观锁"></a>Redis乐观锁</h2><p>在Mysql中获取version，更新时比较version。<br>Redis使用watch监视，unwatch取消监视。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">watch money</span><br><span class="line">multi</span><br><span class="line">decrby money 20</span><br><span class="line">incrby out 20</span><br><span class="line"><span class="built_in">exec</span></span><br></pre></td></tr></table></figure>
+<p>若事务执行前，有其他线程对money进行修改，则提示失败。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">set</span> money 1000</span><br></pre></td></tr></table></figure>
 
       
 
@@ -261,7 +245,7 @@
     <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="//pan.baidu.com/share/qrcode?url=https://hushiba.github.io/2020/10/11/%E8%AF%95%E9%AA%8C/" alt="微信分享二维码">
+      <img src="//pan.baidu.com/share/qrcode?url=https://hushiba.github.io/2020/10/11/Redis%E4%BA%8B%E5%8A%A1/" alt="微信分享二维码">
     </div>
 </div>
 
@@ -276,8 +260,8 @@
 <nav id="article-nav">
   
   
-    <a href="/2020/10/10/hello-world/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">Hello World</div>
+    <a href="/2020/10/11/Springboot%E6%95%B4%E5%90%88Redis/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">Springboot整合Redis</div>
       <i class="icon-circle-right"></i>
     </a>
   
