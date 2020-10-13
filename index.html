@@ -213,7 +213,29 @@
     <div class="article-info article-info-index">
       
       
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Redis</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
       
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Redis//" class="article-tag-list-link color1">Redis</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
 
       
         <p class="article-more-link">
@@ -272,9 +294,10 @@
 <h1 id="SECURITY-安全"><a href="#SECURITY-安全" class="headerlink" title="SECURITY 安全"></a>SECURITY 安全</h1><h2 id="requirepass设置"><a href="#requirepass设置" class="headerlink" title="requirepass设置"></a>requirepass设置</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; ping</span><br><span class="line">PONG</span><br><span class="line">127.0.0.1:6379&gt; config get requirepass</span><br><span class="line">1) <span class="string">&quot;requirepass&quot;</span></span><br><span class="line">2) <span class="string">&quot;&quot;</span></span><br><span class="line">127.0.0.1:6379&gt; config <span class="built_in">set</span> requirepass <span class="string">&quot;842051889&quot;</span> <span class="comment">#密码设置</span></span><br><span class="line">OK</span><br><span class="line">127.0.0.1:6379&gt; config get requirepass</span><br><span class="line">(error) NOAUTH Authentication required.</span><br><span class="line">127.0.0.1:6379&gt; ping</span><br><span class="line">(error) NOAUTH Authentication required.</span><br><span class="line">127.0.0.1:6379&gt; auth 842051889           <span class="comment">#登录验证</span></span><br><span class="line">OK</span><br><span class="line">127.0.0.1:6379&gt; config get requirepass</span><br><span class="line">1) <span class="string">&quot;requirepass&quot;</span></span><br><span class="line">2) <span class="string">&quot;842051889&quot;</span></span><br></pre></td></tr></table></figure>
 <br>
 
-<h1 id="CLIENTS-客户端"><a href="#CLIENTS-客户端" class="headerlink" title="CLIENTS 客户端"></a>CLIENTS 客户端</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">maxclients 10000 <span class="comment">#设置能连接上redis最大客户端数量</span></span><br><span class="line">maxmemory &lt;bytes&gt; <span class="comment">#redis配置最大的内存容量</span></span><br><span class="line">maxmemory-policy noeviction <span class="comment">#内存到达上限之后的处理策略</span></span><br></pre></td></tr></table></figure>
+<h1 id="CLIENTS-客户端"><a href="#CLIENTS-客户端" class="headerlink" title="CLIENTS 客户端"></a>CLIENTS 客户端</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">maxclients 10000 <span class="comment">#设置能连接上redis最大客户端数量</span></span><br><span class="line">maxmemory &lt;bytes&gt; <span class="comment">#redis配置最大的内存容量</span></span><br><span class="line">maxmemory-policy noeviction <span class="comment">#内存到达上限之后的处理策略</span></span><br><span class="line">        <span class="comment">#1、volatile-lru：只对设置了过期时间的key进行LRU（默认值） </span></span><br><span class="line">        <span class="comment">#2、allkeys-lru ： 删除lru算法的key   </span></span><br><span class="line">        <span class="comment">#3、volatile-random：随机删除即将过期key   </span></span><br><span class="line">        <span class="comment">#4、allkeys-random：随机删除   </span></span><br><span class="line">        <span class="comment">#5、volatile-ttl ： 删除即将过期的   </span></span><br><span class="line">        <span class="comment">#6、noeviction ： 永不过期，返回错误</span></span><br></pre></td></tr></table></figure>
 <br>
 
+<h1 id="APPEND-ONLY-MODE-aof配置"><a href="#APPEND-ONLY-MODE-aof配置" class="headerlink" title="APPEND ONLY MODE aof配置"></a>APPEND ONLY MODE aof配置</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">appendonly no <span class="comment">#默认不开启aof模式，默认使用rdb持久化</span></span><br><span class="line">appendfilename <span class="string">&quot;appendonly.aof&quot;</span> <span class="comment">#文件名</span></span><br><span class="line">appendfsync always <span class="comment">#每次修改都会同步，消耗性能</span></span><br><span class="line">appendfsync everysec <span class="comment">#每秒执行一次sync，可能会丢失这一秒数据（默认）</span></span><br><span class="line">appendfsync no <span class="comment">#不执行sync,操作系统自行同步数据，速度最快</span></span><br></pre></td></tr></table></figure>
       
 
       
@@ -282,7 +305,29 @@
     <div class="article-info article-info-index">
       
       
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Redis</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
       
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Redis//" class="article-tag-list-link color1">Redis</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
 
       
         <p class="article-more-link">
@@ -351,7 +396,29 @@
     <div class="article-info article-info-index">
       
       
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Redis</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
       
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Redis//" class="article-tag-list-link color1">Redis</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
 
       
         <p class="article-more-link">
@@ -430,7 +497,37 @@
     <div class="article-info article-info-index">
       
       
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Redis</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Springboot</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
       
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Redis//" class="article-tag-list-link color1">Redis</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Redis/Springboot//" class="article-tag-list-link color1">Springboot</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
 
       
         <p class="article-more-link">
@@ -630,6 +727,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
             <input type="checkbox" q-on="click:toggleTag(e)" q-attr="checked:showTags">
           </label>
           <ul class="article-tag-list" q-show="showTags">
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Redis</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Springboot</a>
+              </li>
             
             <div class="clearfix"></div>
           </ul>
