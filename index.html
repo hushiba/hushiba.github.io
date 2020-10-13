@@ -154,12 +154,189 @@
           <div id="js-content" class="content-ll">
             
   
-    <article id="post-Redis事务" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+    <article id="post-Redis持久化" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2020/10/13/Redis%E6%8C%81%E4%B9%85%E5%8C%96/">Redis持久化</a>
+    </h1>
+  
+
+        
+        <a href="/2020/10/13/Redis%E6%8C%81%E4%B9%85%E5%8C%96/" class="archive-article-date">
+  	<time datetime="2020-10-13T07:46:38.297Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2020-10-13</time>
+</a>
+        
+      </header>
     
     <div class="article-entry" itemprop="articleBody">
       
-        <h1 id="Redis基本事务"><a href="#Redis基本事务" class="headerlink" title="Redis基本事务"></a>Redis基本事务</h1><p>Redis单条命令保证原子性，事务不保证原子性。<br>事务命令序列化，顺序执行。</p>
+        <br>
+
+<h1 id="持久化流程"><a href="#持久化流程" class="headerlink" title="持久化流程"></a>持久化流程</h1><p>既然redis的数据可以保存在磁盘上，那么这个流程是什么样的呢？</p>
+<p>要有下面五个过程：</p>
+<p>（1）客户端向服务端发送写操作(数据在客户端的内存中)。</p>
+<p>（2）数据库服务端接收到写请求的数据(数据在服务端的内存中)。</p>
+<p>（3）服务端调用write这个系统调用，将数据往磁盘上写(数据在系统内存的缓冲区中)。</p>
+<p>（4）操作系统将缓冲区中的数据转移到磁盘控制器上(数据在磁盘缓存中)。</p>
+<p>（5）磁盘控制器将数据写到磁盘的物理介质中(数据真正落到磁盘上)。</p>
+<p>这5个过程是在理想条件下一个正常的保存流程，但是在大多数情况下，我们的机器等等都会有各种各样的故障，这里划分了两种情况：</p>
+<p>（1）Redis数据库发生故障，只要在上面的第三步执行完毕，那么就可以持久化保存，剩下的两步由操作系统替我们完成。</p>
+<p>（2）操作系统发生故障，必须上面5步都完成才可以。</p>
+<p>在这里只考虑了保存的过程可能发生的故障，其实保存的数据也有可能发生损坏，需要一定的恢复机制，不过在这里就不再延伸了。现在主要考虑的是redis如何来实现上面5个保存磁盘的步骤。它提供了两种策略机制，也就是RDB和AOF。<br><br><br><br></p>
+<h1 id="RDB"><a href="#RDB" class="headerlink" title="RDB"></a>RDB</h1><h2 id="save触发方式"><a href="#save触发方式" class="headerlink" title="save触发方式"></a>save触发方式</h2><p>该命令会阻塞当前Redis服务器，执行save命令期间，Redis不能处理其他命令，直到RDB过程完成为止。具体流程如下:<br><br><img src="https://pics1.baidu.com/feed/e7cd7b899e510fb3aa8c05042b22c093d0430ca7.jpeg?token=7ed4cf784a82d04e60b8dc72cf7e3c24&s=EDBAA5565D1859C85444707E02005071" alt="avatr"><br>执行完成时候如果存在老的RDB文件，就把新的替代掉旧的。我们的客户端可能都是几万或者是几十万，这种方式显然不可取。</p>
+<h2 id="bgsave触发方式"><a href="#bgsave触发方式" class="headerlink" title="bgsave触发方式"></a>bgsave触发方式</h2><p>执行该命令时，Redis会在后台异步进行快照操作，快照同时还可以响应客户端请求。具体流程如下：<br><img src="https://pics5.baidu.com/feed/023b5bb5c9ea15cefb035bc8431132f53b87b21e.jpeg?token=a72f072d65d2de548d71bb459cd0bf4f&s=05AAFE168FF04C8A10FD2DEE0300E032" alt="avatr"><br>具体操作是Redis进程执行fork操作创建子进程，RDB持久化过程由子进程负责，完成后自动结束。阻塞只发生在fork阶段，一般时间很短。基本上 Redis 内部所有的RDB操作都是采用 bgsave 命令。<br><br></p>
+<h2 id="自动触发"><a href="#自动触发" class="headerlink" title="自动触发"></a>自动触发</h2><p>自动触发是由我们的配置文件来完成的。在redis.conf配置文件中，里面有如下配置，我们可以去设置：</p>
+<p>①save：这里是用来配置触发 Redis的 RDB 持久化条件，也就是什么时候将内存中的数据保存到硬盘。比如“save m n”。表示m秒内数据集存在n次修改时，自动触发bgsave。</p>
+<p>默认如下配置：</p>
+<p>#表示900 秒内如果至少有 1 个 key 的值变化，则保存save 900 1#表示300 秒内如果至少有 10 个 key 的值变化，则保存save 300 10#表示60 秒内如果至少有 10000 个 key 的值变化，则保存save 60 10000</p>
+<p>不需要持久化，那么你可以注释掉所有的 save 行来停用保存功能。</p>
+<p>②stop-writes-on-bgsave-error ：默认值为yes。当启用了RDB且最后一次后台保存数据失败，Redis是否停止接收数据。这会让用户意识到数据没有正确持久化到磁盘上，否则没有人会注意到灾难（disaster）发生了。如果Redis重启了，那么又可以重新开始接收数据了</p>
+<p>③rdbcompression ；默认值是yes。对于存储到磁盘中的快照，可以设置是否进行压缩存储。</p>
+<p>④rdbchecksum ：默认值是yes。在存储快照后，我们还可以让redis使用CRC64算法来进行数据校验，但是这样做会增加大约10%的性能消耗，如果希望获取到最大的性能提升，可以关闭此功能。</p>
+<p>⑤dbfilename ：设置快照的文件名，默认是 dump.rdb</p>
+<p>⑥dir：设置快照文件的存放路径，这个配置项一定是个目录，而不能是文件名。</p>
+<p>我们可以修改这些配置来实现我们想要的效果。因为第三种方式是配置的，所以我们对前两种进行一个对比：<br><br><br><img src="https://pics5.baidu.com/feed/1c950a7b02087bf43b4490d50ac25f2a11dfcf7e.jpeg?token=22f387ba78130c6115420059481b2393&s=EF48A15796784D8816E1D9EB03007024" alt="avatr"></p>
+<h2 id="触发机制"><a href="#触发机制" class="headerlink" title="触发机制"></a>触发机制</h2><p>1.&nbsp;save规则满足下<br><br>2.&nbsp;执行flushall命令<br><br>3.&nbsp;退出redis<br><br>备份自动生成dump.rdb文件</p>
+<h2 id="数据恢复"><a href="#数据恢复" class="headerlink" title="数据恢复"></a>数据恢复</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; config get dir</span><br><span class="line">1) <span class="string">&quot;dir&quot;</span></span><br><span class="line">2) <span class="string">&quot;/usr/local/redis/var&quot;</span>   <span class="comment">#启动目录</span></span><br></pre></td></tr></table></figure>
+<p>redis启动时，启动目录中存在dump.rdb文件，则自动扫描恢复数据。</p>
+<h2 id="优点"><a href="#优点" class="headerlink" title="优点"></a>优点</h2><p>1.&nbsp;适合大规模数据恢复,且比AOF速度快<br><br>2.&nbsp;对数据的完整性要求不高<br><br>3.&nbsp;生成RDB文件的时候，redis主进程会fork()一个子进程来处理所有保存工作，主进程不需要进行任何磁盘IO操作。<br></p>
+<h2 id="缺点"><a href="#缺点" class="headerlink" title="缺点"></a>缺点</h2><p>1.&nbsp;需要一定的时间间隔，若意外宕机，最后一次修改的数据将丢失<br><br>2.&nbsp;fork进程占用一定空间<br><br>3.&nbsp;RDB快照是一次全量备份，存储的是内存数据的二进制序列化形式，存储上非常紧凑。当进行快照持久化时，会开启一个子进程专门负责快照持久化，子进程会拥有父进程的内存数据，父进程修改内存子进程不会反应出来，所以在快照持久化期间修改的数据不会被保存，可能丢失数据。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2020/10/13/Redis%E6%8C%81%E4%B9%85%E5%8C%96/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-Redis配置" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2020/10/13/Redis%E9%85%8D%E7%BD%AE/">Redis配置</a>
+    </h1>
+  
+
+        
+        <a href="/2020/10/13/Redis%E9%85%8D%E7%BD%AE/" class="archive-article-date">
+  	<time datetime="2020-10-13T07:13:18.301Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2020-10-13</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <br>
+
+<h1 id="SECURITY-安全"><a href="#SECURITY-安全" class="headerlink" title="SECURITY 安全"></a>SECURITY 安全</h1><h2 id="requirepass设置"><a href="#requirepass设置" class="headerlink" title="requirepass设置"></a>requirepass设置</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; ping</span><br><span class="line">PONG</span><br><span class="line">127.0.0.1:6379&gt; config get requirepass</span><br><span class="line">1) <span class="string">&quot;requirepass&quot;</span></span><br><span class="line">2) <span class="string">&quot;&quot;</span></span><br><span class="line">127.0.0.1:6379&gt; config <span class="built_in">set</span> requirepass <span class="string">&quot;842051889&quot;</span> <span class="comment">#密码设置</span></span><br><span class="line">OK</span><br><span class="line">127.0.0.1:6379&gt; config get requirepass</span><br><span class="line">(error) NOAUTH Authentication required.</span><br><span class="line">127.0.0.1:6379&gt; ping</span><br><span class="line">(error) NOAUTH Authentication required.</span><br><span class="line">127.0.0.1:6379&gt; auth 842051889           <span class="comment">#登录验证</span></span><br><span class="line">OK</span><br><span class="line">127.0.0.1:6379&gt; config get requirepass</span><br><span class="line">1) <span class="string">&quot;requirepass&quot;</span></span><br><span class="line">2) <span class="string">&quot;842051889&quot;</span></span><br></pre></td></tr></table></figure>
+<br>
+
+<h1 id="CLIENTS-客户端"><a href="#CLIENTS-客户端" class="headerlink" title="CLIENTS 客户端"></a>CLIENTS 客户端</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">maxclients 10000 <span class="comment">#设置能连接上redis最大客户端数量</span></span><br><span class="line">maxmemory &lt;bytes&gt; <span class="comment">#redis配置最大的内存容量</span></span><br><span class="line">maxmemory-policy noeviction <span class="comment">#内存到达上限之后的处理策略</span></span><br></pre></td></tr></table></figure>
+<br>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2020/10/13/Redis%E9%85%8D%E7%BD%AE/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-Redis事务" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2020/10/11/Redis%E4%BA%8B%E5%8A%A1/">Redis基本事务</a>
+    </h1>
+  
+
+        
+        <a href="/2020/10/11/Redis%E4%BA%8B%E5%8A%A1/" class="archive-article-date">
+  	<time datetime="2020-10-11T09:30:29.196Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2020-10-11</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>Redis单条命令保证原子性，事务不保证原子性。<br>事务命令序列化，顺序执行。</p>
 <p>muti 开启事务<br>exec 执行事务<br>discard 取消事务</p>
 <p>编译型异常，所有事务都不被执行<br>运行时异常，其他命令照常执行</p>
 <h2 id="Redis乐观锁"><a href="#Redis乐观锁" class="headerlink" title="Redis乐观锁"></a>Redis乐观锁</h2><p>在Mysql中获取version，更新时比较version。<br>Redis使用watch监视，unwatch取消监视。</p>
@@ -238,9 +415,9 @@
 <li><a href="#redis%E5%B7%A5%E5%85%B7%E7%B1%BB">Redis工具类</a></li>
 </ul>
 <h2 id="区别"><a href="#区别" class="headerlink" title="区别"></a>区别</h2><p>jedis替换为lettuce<br>jedis: 直连方式，多线程操作不安全。使用jedis pool连接池提高安全性，类似BIO模式。<br><br>lettuce: 采用netty，不存在线程不安全，共享线程中实例，减少线程数据，类似NIO模式。<br><br></p>
-<h2 id="序列化"><a href="#序列化" class="headerlink" title="序列化"></a>序列化</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">User user = <span class="keyword">new</span> User();</span><br><span class="line">        user.setName(<span class="string">&quot;hushiba&quot;</span>);</span><br><span class="line">        user.setAge(<span class="number">20</span>);</span><br><span class="line">        String jsonUser = <span class="keyword">new</span> ObjectMapper().writeValueAsString(user); <span class="comment">//序列化</span></span><br><span class="line">        redisTemplate.opsForValue().set(<span class="string">&quot;user&quot;</span>,jsonUser);</span><br><span class="line">        System.out.println(redisTemplate.opsForValue().get(<span class="string">&quot;user&quot;</span>));</span><br></pre></td></tr></table></figure>
+<h2 id="序列化"><a href="#序列化" class="headerlink" title="序列化"></a>序列化</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">User user = <span class="keyword">new</span> User();</span><br><span class="line">user.setName(<span class="string">&quot;hushiba&quot;</span>);</span><br><span class="line">user.setAge(<span class="number">20</span>);</span><br><span class="line">String jsonUser = <span class="keyword">new</span> ObjectMapper().writeValueAsStrin(user); <span class="comment">//序列化</span></span><br><span class="line">redisTemplate.opsForValue().set(<span class="string">&quot;user&quot;</span>,jsonUser);</span><br><span class="line">System.out.println(redisTemplate.opsForValue().ge(<span class="string">&quot;user&quot;</span>);</span><br></pre></td></tr></table></figure>
 <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">User</span> <span class="keyword">implements</span> <span class="title">Serializable</span> //或直接在类创建时序列化</span></span><br></pre></td></tr></table></figure>
-<p>结果显示：{“name”:”hushiba”,”age”:20}<br><br>若不加序列话讲报错<br><br></p>
+<p>结果显示：{“name”:”hushiba”,”age”:20}<br><br><br>若不加序列话讲报错<br><br></p>
 <h2 id="自定义RedisTemplate"><a href="#自定义RedisTemplate" class="headerlink" title="自定义RedisTemplate"></a>自定义RedisTemplate</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">RedisConfig</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="meta">@SuppressWarnings(&quot;all&quot;)</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> RedisTemplate&lt;String, Object&gt; <span class="title">redisTemplate</span><span class="params">(RedisConnectionFactory factory)</span> </span>&#123;</span><br><span class="line">        RedisTemplate&lt;String, Object&gt; template = <span class="keyword">new</span> RedisTemplate&lt;String, Object&gt;();</span><br><span class="line">        template.setConnectionFactory(factory);</span><br><span class="line">        Jackson2JsonRedisSerializer jackson2JsonRedisSerializer = <span class="keyword">new</span> Jackson2JsonRedisSerializer(Object.class);</span><br><span class="line">        ObjectMapper om = <span class="keyword">new</span> ObjectMapper();</span><br><span class="line">        om.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);</span><br><span class="line">        om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);</span><br><span class="line">        jackson2JsonRedisSerializer.setObjectMapper(om);</span><br><span class="line">        StringRedisSerializer stringRedisSerializer = <span class="keyword">new</span> StringRedisSerializer();</span><br><span class="line"></span><br><span class="line">        <span class="comment">// key采用String的序列化方式</span></span><br><span class="line">        template.setKeySerializer(stringRedisSerializer);</span><br><span class="line">        <span class="comment">// hash的key也采用String的序列化方式</span></span><br><span class="line">        template.setHashKeySerializer(stringRedisSerializer);`</span><br><span class="line">        <span class="comment">// value序列化方式采用jackson</span></span><br><span class="line">        template.setValueSerializer(jackson2JsonRedisSerializer);</span><br><span class="line">        <span class="comment">// hash的value序列化方式采用jackson</span></span><br><span class="line">        template.setHashValueSerializer(jackson2JsonRedisSerializer);</span><br><span class="line">        template.afterPropertiesSet();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> template;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <br>
 
