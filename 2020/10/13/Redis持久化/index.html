@@ -18,8 +18,10 @@
 <meta property="og:image" content="https://pics1.baidu.com/feed/e7cd7b899e510fb3aa8c05042b22c093d0430ca7.jpeg?token=7ed4cf784a82d04e60b8dc72cf7e3c24&s=EDBAA5565D1859C85444707E02005071">
 <meta property="og:image" content="https://pics5.baidu.com/feed/023b5bb5c9ea15cefb035bc8431132f53b87b21e.jpeg?token=a72f072d65d2de548d71bb459cd0bf4f&s=05AAFE168FF04C8A10FD2DEE0300E032">
 <meta property="og:image" content="https://pics5.baidu.com/feed/1c950a7b02087bf43b4490d50ac25f2a11dfcf7e.jpeg?token=22f387ba78130c6115420059481b2393&s=EF48A15796784D8816E1D9EB03007024">
+<meta property="og:image" content="https://pics7.baidu.com/feed/09fa513d269759ee28454d2c4cea4b106c22dfd3.jpeg?token=86eda46b8bcd54a7a0e7d8a37d87bee8&s=EDB2A4579D317B824660D4DF0200E036">
+<meta property="og:image" content="https://pics5.baidu.com/feed/b17eca8065380cd7df69859ba056a5325982816c.jpeg?token=a060f459d81c409c3d6c7208d2118888&s=AF4AA5574ED85CC841D04BE60300A036">
 <meta property="article:published_time" content="2020-10-13T07:46:38.297Z">
-<meta property="article:modified_time" content="2020-10-13T14:21:00.733Z">
+<meta property="article:modified_time" content="2020-10-14T12:40:00.320Z">
 <meta property="article:author" content="John Doe">
 <meta property="article:tag" content="Redis">
 <meta name="twitter:card" content="summary">
@@ -195,21 +197,76 @@
 <h1 id="RDB"><a href="#RDB" class="headerlink" title="RDB"></a>RDB</h1><h2 id="save触发方式"><a href="#save触发方式" class="headerlink" title="save触发方式"></a>save触发方式</h2><p>该命令会阻塞当前Redis服务器，执行save命令期间，Redis不能处理其他命令，直到RDB过程完成为止。具体流程如下:<br><br><img src="https://pics1.baidu.com/feed/e7cd7b899e510fb3aa8c05042b22c093d0430ca7.jpeg?token=7ed4cf784a82d04e60b8dc72cf7e3c24&s=EDBAA5565D1859C85444707E02005071" alt="avatr"><br>执行完成时候如果存在老的RDB文件，就把新的替代掉旧的。我们的客户端可能都是几万或者是几十万，这种方式显然不可取。</p>
 <h2 id="bgsave触发方式"><a href="#bgsave触发方式" class="headerlink" title="bgsave触发方式"></a>bgsave触发方式</h2><p>执行该命令时，Redis会在后台异步进行快照操作，快照同时还可以响应客户端请求。具体流程如下：<br><img src="https://pics5.baidu.com/feed/023b5bb5c9ea15cefb035bc8431132f53b87b21e.jpeg?token=a72f072d65d2de548d71bb459cd0bf4f&s=05AAFE168FF04C8A10FD2DEE0300E032" alt="avatr"><br>具体操作是Redis进程执行fork操作创建子进程，RDB持久化过程由子进程负责，完成后自动结束。阻塞只发生在fork阶段，一般时间很短。基本上 Redis 内部所有的RDB操作都是采用 bgsave 命令。</p>
 <h2 id="自动触发"><a href="#自动触发" class="headerlink" title="自动触发"></a>自动触发</h2><p>自动触发是由我们的配置文件来完成的。在redis.conf配置文件中，里面有如下配置，我们可以去设置：</p>
-<p>①save：这里是用来配置触发 Redis的 RDB 持久化条件，也就是什么时候将内存中的数据保存到硬盘。比如“save m n”。表示m秒内数据集存在n次修改时，自动触发bgsave。</p>
-<p>默认如下配置：</p>
-<p>#表示900 秒内如果至少有 1 个 key 的值变化，则保存save 900 1#表示300 秒内如果至少有 10 个 key 的值变化，则保存save 300 10#表示60 秒内如果至少有 10000 个 key 的值变化，则保存save 60 10000</p>
-<p>不需要持久化，那么你可以注释掉所有的 save 行来停用保存功能。</p>
-<p>②stop-writes-on-bgsave-error ：默认值为yes。当启用了RDB且最后一次后台保存数据失败，Redis是否停止接收数据。这会让用户意识到数据没有正确持久化到磁盘上，否则没有人会注意到灾难（disaster）发生了。如果Redis重启了，那么又可以重新开始接收数据了</p>
-<p>③rdbcompression ；默认值是yes。对于存储到磁盘中的快照，可以设置是否进行压缩存储。</p>
-<p>④rdbchecksum ：默认值是yes。在存储快照后，我们还可以让redis使用CRC64算法来进行数据校验，但是这样做会增加大约10%的性能消耗，如果希望获取到最大的性能提升，可以关闭此功能。</p>
-<p>⑤dbfilename ：设置快照的文件名，默认是 dump.rdb</p>
-<p>⑥dir：设置快照文件的存放路径，这个配置项一定是个目录，而不能是文件名。</p>
+<ul>
+<li><p>save：这里是用来配置触发 Redis的 RDB 持久化条件，也就是什么时候将内存中的数据保存到硬盘。比如“save m n”。表示m秒内数据集存在n次修改时，自动触发bgsave。<br>默认如下配置：<br><br>#表示900 秒内如果至少有 1 个 key 的值变化，则保存save 900 1#表示300 秒内如果至少有 10 个 key 的值变化，则保存save 300 10#表示60 秒内如果至少有 10000 个 key 的值变化，则保存save 60 10000<br><br>不需要持久化，那么你可以注释掉所有的 save 行来停用保存功能。</p>
+</li>
+<li><p>stop-writes-on-bgsave-error ：默认值为yes。当启用了RDB且最后一次后台保存数据失败，Redis是否停止接收数据。这会让用户意识到数据没有正确持久化到磁盘上，否则没有人会注意到灾难（disaster）发生了。如果Redis重启了，那么又可以重新开始接收数据了</p>
+</li>
+<li><p>rdbcompression ；默认值是yes。对于存储到磁盘中的快照，可以设置是否进行压缩存储。</p>
+</li>
+<li><p>rdbchecksum ：默认值是yes。在存储快照后，我们还可以让redis使用CRC64算法来进行数据校验，但是这样做会增加大约10%的性能消耗，如果希望获取到最大的性能提升，可以关闭此功能。</p>
+</li>
+<li><p>dbfilename ：设置快照的文件名，默认是 dump.rdb</p>
+</li>
+<li><p>dir：设置快照文件的存放路径，这个配置项一定是个目录，而不能是文件名。</p>
+</li>
+</ul>
 <p>我们可以修改这些配置来实现我们想要的效果。因为第三种方式是配置的，所以我们对前两种进行一个对比：<br><img src="https://pics5.baidu.com/feed/1c950a7b02087bf43b4490d50ac25f2a11dfcf7e.jpeg?token=22f387ba78130c6115420059481b2393&s=EF48A15796784D8816E1D9EB03007024" alt="avatr"></p>
 <h2 id="触发机制"><a href="#触发机制" class="headerlink" title="触发机制"></a>触发机制</h2><p>1.&nbsp;save规则满足下<br><br>2.&nbsp;执行flushall命令<br><br>3.&nbsp;退出redis<br><br>备份自动生成dump.rdb文件</p>
 <h2 id="数据恢复"><a href="#数据恢复" class="headerlink" title="数据恢复"></a>数据恢复</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">127.0.0.1:6379&gt; config get dir</span><br><span class="line">1) <span class="string">&quot;dir&quot;</span></span><br><span class="line">2) <span class="string">&quot;/usr/local/redis/var&quot;</span>   <span class="comment">#启动目录</span></span><br></pre></td></tr></table></figure>
 <p>redis启动时，启动目录中存在dump.rdb文件，则自动扫描恢复数据。</p>
 <h2 id="优点"><a href="#优点" class="headerlink" title="优点"></a>优点</h2><p>1.&nbsp;适合大规模数据恢复,且比AOF速度快<br><br>2.&nbsp;对数据的完整性要求不高<br><br>3.&nbsp;生成RDB文件的时候，redis主进程会fork()一个子进程来处理所有保存工作，主进程不需要进行任何磁盘IO操作</p>
-<h2 id="缺点"><a href="#缺点" class="headerlink" title="缺点"></a>缺点</h2><p>1.&nbsp;需要一定的时间间隔，若意外宕机，最后一次修改的数据将丢失<br><br>2.&nbsp;fork进程占用一定空间<br><br>3.&nbsp;RDB快照是一次全量备份，存储的是内存数据的二进制序列化形式，存储上非常紧凑。当进行快照持久化时，会开启一个子进程专门负责快照持久化，子进程会拥有父进程的内存数据，父进程修改内存子进程不会反应出来，所以在快照持久化期间修改的数据不会被保存，可能丢失数据。</p>
+<h2 id="缺点"><a href="#缺点" class="headerlink" title="缺点"></a>缺点</h2><p>1.&nbsp;需要一定的时间间隔，若意外宕机，最后一次修改的数据将丢失<br><br>2.&nbsp;fork进程占用一定空间<br><br>3.&nbsp;RDB快照是一次全量备份，存储的是内存数据的二进制序列化形式，存储上非常紧凑。当进行快照持久化时，会开启一个子进程专门负责快照持久化，子进程会拥有父进程的内存数据，父进程修改内存子进程不会反应出来，所以在快照持久化期间修改的数据不会被保存，可能丢失数据。<br><br></p>
+<h1 id="AOF"><a href="#AOF" class="headerlink" title="AOF"></a>AOF</h1><h2 id="AOF机制"><a href="#AOF机制" class="headerlink" title="AOF机制"></a>AOF机制</h2><p>全量备份总是耗时的，有时候我们提供一种更加高效的方式AOF，工作机制很简单，redis会将每一个收到的写命令都通过write函数追加到文件中。通俗的理解就是日志记录。</p>
+<h2 id="文件重写原理"><a href="#文件重写原理" class="headerlink" title="文件重写原理"></a>文件重写原理</h2><p>AOF的方式也同时带来了另一个问题。持久化文件会变的越来越大。为了压缩aof的持久化文件。redis提供了bgrewriteaof命令。将内存中的数据以命令的方式保存到临时文件中，同时会fork出一条新进程来将文件重写。<br><img src="https://pics7.baidu.com/feed/09fa513d269759ee28454d2c4cea4b106c22dfd3.jpeg?token=86eda46b8bcd54a7a0e7d8a37d87bee8&s=EDB2A4579D317B824660D4DF0200E036" alt="avtar"><br>重写aof文件的操作，并没有读取旧的aof文件，而是将整个内存中的数据库内容用命令的方式重写了一个新的aof文件，这点和快照有点类似。</p>
+<h2 id="AOF三种触发机制"><a href="#AOF三种触发机制" class="headerlink" title="AOF三种触发机制"></a>AOF三种触发机制</h2><p>1.&nbsp;每修改同步always：同步持久化 每次发生数据变更会被立即记录到磁盘 性能较差但数据完整性比较好</p>
+<p>2.&nbsp;每秒同步everysec：异步操作，每秒记录 如果一秒内宕机，有数据丢失</p>
+<p>3.&nbsp;不同no：从不同步<br><br><br><img src="https://pics5.baidu.com/feed/b17eca8065380cd7df69859ba056a5325982816c.jpeg?token=a060f459d81c409c3d6c7208d2118888&s=AF4AA5574ED85CC841D04BE60300A036" alt="avatr"></p>
+<h2 id="优点-1"><a href="#优点-1" class="headerlink" title="优点"></a>优点</h2><p>1.&nbsp;AOF可以更好的保护数据不丢失，一般AOF会每隔1秒，通过一个后台线程执行一次fsync操作，最多丢失1秒钟的数据。（2）AOF日志文件没有任何磁盘寻址的开销，写入性能非常高，文件不容易破损。</p>
+<p>2.&nbsp;AOF日志文件即使过大的时候，出现后台重写操作，也不会影响客户端的读写。</p>
+<p>3.&nbsp;AOF日志文件的命令通过非常可读的方式进行记录，这个特性非常适合做灾难性的误删除的紧急恢复。比如某人不小心用flushall命令清空了所有数据，只要这个时候后台rewrite还没有发生，那么就可以立即拷贝AOF文件，将最后一条flushall命令给删了，然后再将该AOF文件放回去，就可以通过恢复机制，自动恢复所有数据</p>
+<h2 id="缺点-1"><a href="#缺点-1" class="headerlink" title="缺点"></a>缺点</h2><p>1.&nbsp;对于同一份数据来说，AOF日志文件通常比RDB数据快照文件更大</p>
+<p>2.&nbsp;AOF开启后，支持的写QPS会比RDB支持的写QPS低，因为AOF一般会配置成每秒fsync一次日志文件，当然，每秒一次fsync，性能也还是很高的</p>
+<p>3.&nbsp;以前AOF发生过bug，就是通过AOF记录的日志，进行数据恢复的时候，没有恢复一模一样的数据出来。<br><br></p>
+<table>
+<thead>
+<tr>
+<th align="left">命令</th>
+<th align="left">RDB</th>
+<th align="left">AOF</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">启动优先级</td>
+<td align="left">低</td>
+<td align="left">高</td>
+</tr>
+<tr>
+<td align="left">体积</td>
+<td align="left">小</td>
+<td align="left">大</td>
+</tr>
+<tr>
+<td align="left">恢复速度</td>
+<td align="left">快</td>
+<td align="left">慢</td>
+</tr>
+<tr>
+<td align="left">数据安全性</td>
+<td align="left">丢数据</td>
+<td align="left">根据策略决定</td>
+</tr>
+<tr>
+<td align="left">轻重</td>
+<td align="left">重</td>
+<td align="left">轻</td>
+</tr>
+<tr>
+<td align="left"></td>
+<td align="left"></td>
+<td align="left"></td>
+</tr>
+</tbody></table>
 
       
 
@@ -454,10 +511,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Redis</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Springboot</a>
               </li>
             
             <div class="clearfix"></div>
