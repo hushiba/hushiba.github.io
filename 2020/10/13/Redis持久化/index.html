@@ -8,12 +8,12 @@
   <link rel="dns-prefetch" href="https://hushiba.github.io">
   <title>Redis持久化 | 胡十八</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="持久化流程既然redis的数据可以保存在磁盘上，那么这个流程是什么样的呢？ 要有下面五个过程： （1）客户端向服务端发送写操作(数据在客户端的内存中)。 （2）数据库服务端接收到写请求的数据(数据在服务端的内存中)。 （3）服务端调用write这个系统调用，将数据往磁盘上写(数据在系统内存的缓冲区中)。 （4）操作系统将缓冲区中的数据转移到磁盘控制器上(数据在磁盘缓存中)。 （5）磁盘控制器将">
+  <meta name="description" content="持久化流程 RDB save触发方式 bgsave触发方式 自动触发 触发机制 数据恢复 优点 缺点   AOF AOF机制 文件重写原理 AOF三种触发机制 优点 缺点     # 持久化流程 既然redis的数据可以保存在磁盘上，那么这个流程是什么样的呢？  要有下面五个过程： （1）客户端向服务端发送写操作(数据在客户端的内存中)。 （2）数据库服务端接收到写请求的数据(数据在服务端的">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Redis持久化">
 <meta property="og:url" content="https://hushiba.github.io/2020/10/13/Redis%E6%8C%81%E4%B9%85%E5%8C%96/index.html">
 <meta property="og:site_name" content="胡十八">
-<meta property="og:description" content="持久化流程既然redis的数据可以保存在磁盘上，那么这个流程是什么样的呢？ 要有下面五个过程： （1）客户端向服务端发送写操作(数据在客户端的内存中)。 （2）数据库服务端接收到写请求的数据(数据在服务端的内存中)。 （3）服务端调用write这个系统调用，将数据往磁盘上写(数据在系统内存的缓冲区中)。 （4）操作系统将缓冲区中的数据转移到磁盘控制器上(数据在磁盘缓存中)。 （5）磁盘控制器将">
+<meta property="og:description" content="持久化流程 RDB save触发方式 bgsave触发方式 自动触发 触发机制 数据恢复 优点 缺点   AOF AOF机制 文件重写原理 AOF三种触发机制 优点 缺点     # 持久化流程 既然redis的数据可以保存在磁盘上，那么这个流程是什么样的呢？  要有下面五个过程： （1）客户端向服务端发送写操作(数据在客户端的内存中)。 （2）数据库服务端接收到写请求的数据(数据在服务端的">
 <meta property="og:locale" content="en_US">
 <meta property="og:image" content="https://pics1.baidu.com/feed/e7cd7b899e510fb3aa8c05042b22c093d0430ca7.jpeg?token=7ed4cf784a82d04e60b8dc72cf7e3c24&s=EDBAA5565D1859C85444707E02005071">
 <meta property="og:image" content="https://pics5.baidu.com/feed/023b5bb5c9ea15cefb035bc8431132f53b87b21e.jpeg?token=a72f072d65d2de548d71bb459cd0bf4f&s=05AAFE168FF04C8A10FD2DEE0300E032">
@@ -21,7 +21,7 @@
 <meta property="og:image" content="https://pics7.baidu.com/feed/09fa513d269759ee28454d2c4cea4b106c22dfd3.jpeg?token=86eda46b8bcd54a7a0e7d8a37d87bee8&s=EDB2A4579D317B824660D4DF0200E036">
 <meta property="og:image" content="https://pics5.baidu.com/feed/b17eca8065380cd7df69859ba056a5325982816c.jpeg?token=a060f459d81c409c3d6c7208d2118888&s=AF4AA5574ED85CC841D04BE60300A036">
 <meta property="article:published_time" content="2020-10-13T07:46:38.297Z">
-<meta property="article:modified_time" content="2020-10-14T12:40:00.320Z">
+<meta property="article:modified_time" content="2020-10-14T12:43:24.793Z">
 <meta property="article:author" content="John Doe">
 <meta property="article:tag" content="Redis">
 <meta name="twitter:card" content="summary">
@@ -183,7 +183,31 @@
       
         <br>
 
-<h1 id="持久化流程"><a href="#持久化流程" class="headerlink" title="持久化流程"></a>持久化流程</h1><p>既然redis的数据可以保存在磁盘上，那么这个流程是什么样的呢？</p>
+<ul>
+<li><a href="#%E6%8C%81%E4%B9%85%E5%8C%96%E6%B5%81%E7%A8%8B">持久化流程</a></li>
+<li><a href="#rdb">RDB</a><ul>
+<li><a href="#save%E8%A7%A6%E5%8F%91%E6%96%B9%E5%BC%8F">save触发方式</a></li>
+<li><a href="#bgsave%E8%A7%A6%E5%8F%91%E6%96%B9%E5%BC%8F">bgsave触发方式</a></li>
+<li><a href="#%E8%87%AA%E5%8A%A8%E8%A7%A6%E5%8F%91">自动触发</a></li>
+<li><a href="#%E8%A7%A6%E5%8F%91%E6%9C%BA%E5%88%B6">触发机制</a></li>
+<li><a href="#%E6%95%B0%E6%8D%AE%E6%81%A2%E5%A4%8D">数据恢复</a></li>
+<li><a href="#%E4%BC%98%E7%82%B9">优点</a></li>
+<li><a href="#%E7%BC%BA%E7%82%B9">缺点</a></li>
+</ul>
+</li>
+<li><a href="#aof">AOF</a><ul>
+<li><a href="#aof%E6%9C%BA%E5%88%B6">AOF机制</a></li>
+<li><a href="#%E6%96%87%E4%BB%B6%E9%87%8D%E5%86%99%E5%8E%9F%E7%90%86">文件重写原理</a></li>
+<li><a href="#aof%E4%B8%89%E7%A7%8D%E8%A7%A6%E5%8F%91%E6%9C%BA%E5%88%B6">AOF三种触发机制</a></li>
+<li><a href="#%E4%BC%98%E7%82%B9-1">优点</a></li>
+<li><a href="#%E7%BC%BA%E7%82%B9-1">缺点</a></li>
+</ul>
+</li>
+</ul>
+<br>
+# 持久化流程
+既然redis的数据可以保存在磁盘上，那么这个流程是什么样的呢？
+
 <p>要有下面五个过程：</p>
 <p>（1）客户端向服务端发送写操作(数据在客户端的内存中)。</p>
 <p>（2）数据库服务端接收到写请求的数据(数据在服务端的内存中)。</p>
@@ -260,11 +284,6 @@
 <td align="left">轻重</td>
 <td align="left">重</td>
 <td align="left">轻</td>
-</tr>
-<tr>
-<td align="left"></td>
-<td align="left"></td>
-<td align="left"></td>
 </tr>
 </tbody></table>
 

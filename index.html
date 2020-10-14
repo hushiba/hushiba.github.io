@@ -176,7 +176,31 @@
       
         <br>
 
-<h1 id="持久化流程"><a href="#持久化流程" class="headerlink" title="持久化流程"></a>持久化流程</h1><p>既然redis的数据可以保存在磁盘上，那么这个流程是什么样的呢？</p>
+<ul>
+<li><a href="#%E6%8C%81%E4%B9%85%E5%8C%96%E6%B5%81%E7%A8%8B">持久化流程</a></li>
+<li><a href="#rdb">RDB</a><ul>
+<li><a href="#save%E8%A7%A6%E5%8F%91%E6%96%B9%E5%BC%8F">save触发方式</a></li>
+<li><a href="#bgsave%E8%A7%A6%E5%8F%91%E6%96%B9%E5%BC%8F">bgsave触发方式</a></li>
+<li><a href="#%E8%87%AA%E5%8A%A8%E8%A7%A6%E5%8F%91">自动触发</a></li>
+<li><a href="#%E8%A7%A6%E5%8F%91%E6%9C%BA%E5%88%B6">触发机制</a></li>
+<li><a href="#%E6%95%B0%E6%8D%AE%E6%81%A2%E5%A4%8D">数据恢复</a></li>
+<li><a href="#%E4%BC%98%E7%82%B9">优点</a></li>
+<li><a href="#%E7%BC%BA%E7%82%B9">缺点</a></li>
+</ul>
+</li>
+<li><a href="#aof">AOF</a><ul>
+<li><a href="#aof%E6%9C%BA%E5%88%B6">AOF机制</a></li>
+<li><a href="#%E6%96%87%E4%BB%B6%E9%87%8D%E5%86%99%E5%8E%9F%E7%90%86">文件重写原理</a></li>
+<li><a href="#aof%E4%B8%89%E7%A7%8D%E8%A7%A6%E5%8F%91%E6%9C%BA%E5%88%B6">AOF三种触发机制</a></li>
+<li><a href="#%E4%BC%98%E7%82%B9-1">优点</a></li>
+<li><a href="#%E7%BC%BA%E7%82%B9-1">缺点</a></li>
+</ul>
+</li>
+</ul>
+<br>
+# 持久化流程
+既然redis的数据可以保存在磁盘上，那么这个流程是什么样的呢？
+
 <p>要有下面五个过程：</p>
 <p>（1）客户端向服务端发送写操作(数据在客户端的内存中)。</p>
 <p>（2）数据库服务端接收到写请求的数据(数据在服务端的内存中)。</p>
@@ -253,11 +277,6 @@
 <td align="left">轻重</td>
 <td align="left">重</td>
 <td align="left">轻</td>
-</tr>
-<tr>
-<td align="left"></td>
-<td align="left"></td>
-<td align="left"></td>
 </tr>
 </tbody></table>
 
